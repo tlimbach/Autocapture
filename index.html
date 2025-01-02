@@ -117,7 +117,11 @@
           if (!stream) {
             try {
               stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment" },
+                video: {
+                  width: { ideal: 720 }, // Breite im Hochformat (z. B. 720px)
+                  height: { ideal: 1280 }, // Höhe im Hochformat (z. B. 1280px)
+                  facingMode: "environment", // Rückkamera
+                },
               });
               document.getElementById("video").srcObject = stream;
             } catch (error) {
@@ -149,7 +153,6 @@
       }
 
       function takePhoto() {
-      
         if (!stream) {
           console.error(
             "Stream ist nicht verfügbar. Starten Sie zuerst die Kamera."
@@ -166,7 +169,6 @@
           .then((blob) => {
             console.log("Foto aufgenommen");
             savePhotoToIndexedDB(blob); // Speichere das Bild in IndexedDB
-           
           })
           .catch((error) => {
             console.error("Fehler beim Aufnehmen des Fotos:", error);
