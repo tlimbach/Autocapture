@@ -114,6 +114,17 @@
 
       async function startCamera() {
         try {
+          if (!stream) {
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "environment" },
+              });
+              document.getElementById("video").srcObject = stream;
+            } catch (error) {
+              console.error("Fehler beim Zugriff auf die Kamera:", error);
+            }
+          }
+
           document.getElementById("video").srcObject = stream;
           document.getElementById("startCameraBtn").disabled = true;
           document.getElementById("stopCameraBtn").disabled = false;
@@ -138,30 +149,27 @@
       }
 
       function takePhoto() {
-        navigator.mediaDevices
-          .getUserMedia({
-            video: {
-              facingMode: "environment",
-            },
-          })
-          .then((stream) => {
-            const track = stream.getVideoTracks()[0];
-            const imageCapture = new ImageCapture(track);
+      
+        if (!stream) {
+          console.error(
+            "Stream ist nicht verfügbar. Starten Sie zuerst die Kamera."
+          );
+          return;
+        }
 
-            // Foto aufnehmen
-            imageCapture
-              .takePhoto()
-              .then((blob) => {
-                console.log("Foto aufgenommen");
-                savePhotoToIndexedDB(blob); // Speichere das Bild in IndexedDB
-                stream.getTracks().forEach((track) => track.stop()); // Kamera-Stream stoppen
-              })
-              .catch((error) => {
-                console.error("Fehler beim Aufnehmen des Fotos:", error);
-              });
+        const track = stream.getVideoTracks()[0];
+        const imageCapture = new ImageCapture(track);
+
+        // Foto aufnehmen
+        imageCapture
+          .takePhoto()
+          .then((blob) => {
+            console.log("Foto aufgenommen");
+            savePhotoToIndexedDB(blob); // Speichere das Bild in IndexedDB
+           
           })
           .catch((error) => {
-            console.error("Fehler beim Zugriff auf die Kamera:", error);
+            console.error("Fehler beim Aufnehmen des Fotos:", error);
           });
       }
 
