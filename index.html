@@ -44,8 +44,15 @@
         border: 1px solid #ddd;
         border-radius: 5px;
       }
+      div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px; /* Abstand zwischen den Buttons */
+      }
+
       button {
-        margin-top: 10px;
+        width: 80%; /* Optionale Breitenanpassung */
         padding: 8px 12px;
         border: none;
         border-radius: 5px;
@@ -53,6 +60,7 @@
         color: white;
         cursor: pointer;
       }
+
       button:hover {
         background-color: #0056b3;
       }
