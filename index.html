@@ -55,6 +55,12 @@
         button:hover {
             background-color: #0056b3;
         }
+        select, #imageCount {
+            margin: 10px 0;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -66,10 +72,22 @@
 
     <!-- Steuerelemente -->
     <div>
+        <label for="intervalSelect">Aufnahme-Intervall:</label>
+        <select id="intervalSelect">
+            <option value="500">0,5 Sekunden</option> 
+            <option value="1000">1 Sekunde</option>
+            <option value="2000">2 Sekunden</option>
+            <option value="5000">5 Sekunden</option>
+            <option value="30000">30 Sekunden</option>
+            <option value="60000">1 Minute</option>
+        </select>
         <button id="startCameraBtn">Kamera starten</button>
         <button id="stopCameraBtn" disabled>Kamera stoppen</button>
         <button id="showPhotosBtn">Fotos anzeigen</button>
+        <button id="deletePhotosBtn">Alle Fotos löschen</button>
     </div>
+
+    <p id="imageCount">Gespeicherte Bilder: 0</p>
 
     <!-- Galerie für die gespeicherten Fotos -->
     <div id="photoGallery"></div>
@@ -79,6 +97,7 @@
         let db; // IndexedDB-Instanz
         let stream; // Kamera-Stream
         let photoInterval; // Intervall für die automatische Fotoaufnahme
+        let currentInterval = 500; // Standardintervall: 0,5 Sekunden
 
         // IndexedDB initialisieren
         function initDatabase() {
@@ -94,6 +113,7 @@
             request.onsuccess = function (event) {
                 db = event.target.result;
                 console.log("Datenbank initialisiert");
+                updateImageCount();
             };
 
             request.onerror = function (event) {
@@ -120,8 +140,8 @@
                 document.getElementById("startCameraBtn").disabled = true;
                 document.getElementById("stopCameraBtn").disabled = false;
 
-                // Automatische Fotoaufnahme alle 2 Sekunden
-                photoInterval = setInterval(() => captureAndSavePhoto(videoElement), 2000);
+                // Automatische Fotoaufnahme basierend auf aktuellem Intervall
+                photoInterval = setInterval(() => captureAndSavePhoto(videoElement), currentInterval);
             } catch (error) {
                 console.error("Fehler beim Zugriff auf die Kamera:", error);
             }
@@ -156,6 +176,7 @@
             store.add({ id, photoData });
 
             console.log(`Foto gespeichert mit ID: ${id}`);
+            updateImageCount();
         }
 
         // Funktion: Fotos aus IndexedDB anzeigen
@@ -200,10 +221,51 @@
             a.click();
         }
 
+        // Funktion: Alle Fotos löschen
+        function deleteAllPhotos() {
+            if (confirm("Möchten Sie wirklich alle Fotos löschen?")) {
+                const transaction = db.transaction(["photos"], "readwrite");
+                const store = transaction.objectStore("photos");
+                const request = store.clear();
+
+                request.onsuccess = function () {
+                    console.log("Alle Fotos wurden gelöscht");
+                    updateImageCount();
+                };
+
+                request.onerror = function () {
+                    console.error("Fehler beim Löschen der Fotos:", request.error);
+                };
+            }
+        }
+
+        // Funktion: Bildanzahl aktualisieren
+        function updateImageCount() {
+            const transaction = db.transaction(["photos"], "readonly");
+            const store = transaction.objectStore("photos");
+            const request = store.count();
+
+            request.onsuccess = function () {
+                const count = request.result;
+                document.getElementById("imageCount").textContent = `Gespeicherte Bilder: ${count}`;
+            };
+        }
+
         // Event-Listener für Buttons
         document.getElementById("startCameraBtn").addEventListener("click", startCamera);
         document.getElementById("stopCameraBtn").addEventListener("click", stopCamera);
         document.getElementById("showPhotosBtn").addEventListener("click", displayPhotos);
+        document.getElementById("deletePhotosBtn").addEventListener("click", deleteAllPhotos);
+
+        // Event-Listener für Intervallauswahl
+        document.getElementById("intervalSelect").addEventListener("change", function (event) {
+            currentInterval = parseInt(event.target.value, 10);
+            console.log(`Intervall auf ${currentInterval} ms gesetzt`);
+            if (photoInterval) {
+                clearInterval(photoInterval);
+                photoInterval = setInterval(() => captureAndSavePhoto(document.getElementById("video")), currentInterval);
+            }
+        });
 
         // IndexedDB initialisieren
         initDatabase();
