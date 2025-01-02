@@ -105,7 +105,10 @@
           updateImageCount();
         };
         request.onerror = (event) => {
-          console.error("Fehler beim Initialisieren der Datenbank:", event.target.errorCode);
+          console.error(
+            "Fehler beim Initialisieren der Datenbank:",
+            event.target.errorCode
+          );
         };
       }
 
@@ -140,7 +143,11 @@
 
         navigator.mediaDevices
           .getUserMedia({
-            video: { facingMode: "environment", width: { ideal: width }, height: { ideal: height } },
+            video: {
+              facingMode: "environment",
+              width: { ideal: width },
+              height: { ideal: height },
+            },
           })
           .then((stream) => {
             const track = stream.getVideoTracks()[0];
@@ -179,16 +186,46 @@
         const transaction = db.transaction(["photos"], "readonly");
         const store = transaction.objectStore("photos");
         const request = store.getAll();
+
         request.onsuccess = () => {
           const photos = request.result;
           const gallery = document.getElementById("photoGallery");
-          gallery.innerHTML = "";
+          gallery.innerHTML = ""; // Lösche vorherige Inhalte der Galerie
+
           photos.forEach((photo) => {
+            // Erstelle ein Container für jedes Foto
+            const photoContainer = document.createElement("div");
+            photoContainer.className = "photoContainer";
+
+            // Erstelle ein Bild-Element
             const img = document.createElement("img");
             img.src = photo.photoData;
-            gallery.appendChild(img);
+
+            // Erstelle einen Button, um das Foto zu speichern
+            const saveButton = document.createElement("button");
+            saveButton.textContent = "Speichern";
+            saveButton.onclick = () => savePhoto(photo.photoData);
+
+            // Füge Bild und Button zum Container hinzu
+            photoContainer.appendChild(img);
+            photoContainer.appendChild(saveButton);
+
+            // Füge den Container zur Galerie hinzu
+            gallery.appendChild(photoContainer);
           });
         };
+
+        request.onerror = () => {
+          console.error("Fehler beim Abrufen der Fotos:", request.error);
+        };
+      }
+
+      // Funktion: Foto als Datei speichern
+      function savePhoto(photoData) {
+        const a = document.createElement("a");
+        a.href = photoData; // Base64-URL des Fotos
+        a.download = `photo_${Date.now()}.jpg`; // Standard-Dateiname
+        a.click();
       }
 
       function deleteAllPhotos() {
@@ -205,21 +242,33 @@
         const store = transaction.objectStore("photos");
         const request = store.count();
         request.onsuccess = () => {
-          document.getElementById("imageCount").textContent = `Gespeicherte Bilder: ${request.result}`;
+          document.getElementById(
+            "imageCount"
+          ).textContent = `Gespeicherte Bilder: ${request.result}`;
         };
       }
 
-      document.getElementById("startCameraBtn").addEventListener("click", startCamera);
-      document.getElementById("stopCameraBtn").addEventListener("click", stopCamera);
-      document.getElementById("showPhotosBtn").addEventListener("click", displayPhotos);
-      document.getElementById("deletePhotosBtn").addEventListener("click", deleteAllPhotos);
-      document.getElementById("intervalSelect").addEventListener("change", (event) => {
-        currentInterval = parseInt(event.target.value, 10);
-        if (photoInterval) {
-          clearInterval(photoInterval);
-          photoInterval = setInterval(takePhoto, currentInterval);
-        }
-      });
+      document
+        .getElementById("startCameraBtn")
+        .addEventListener("click", startCamera);
+      document
+        .getElementById("stopCameraBtn")
+        .addEventListener("click", stopCamera);
+      document
+        .getElementById("showPhotosBtn")
+        .addEventListener("click", displayPhotos);
+      document
+        .getElementById("deletePhotosBtn")
+        .addEventListener("click", deleteAllPhotos);
+      document
+        .getElementById("intervalSelect")
+        .addEventListener("change", (event) => {
+          currentInterval = parseInt(event.target.value, 10);
+          if (photoInterval) {
+            clearInterval(photoInterval);
+            photoInterval = setInterval(takePhoto, currentInterval);
+          }
+        });
 
       initDatabase();
     </script>
