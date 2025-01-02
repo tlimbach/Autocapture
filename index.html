@@ -1,31 +1,212 @@
 <!DOCTYPE html>
-<html lang="de">
-
+<html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    
-    <meta name='apple-mobile-web-app-capable' content='yes' />
-    <meta name="viewport" content = "width = device-width, initial-scale = 1.0, minimum-scale = 1, maximum-scale = 1, user-scalable = no" />
-    <meta name="apple-mobile-web-app-title" content="Epsi" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
-    <title>Autocapture</title>
-
-    <link rel="manifest" href="manifest.json">
-    
-    <script src="autocapture.js" defer></script>
-    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kamera-App</title>
     <style>
-    
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #videoContainer {
+            position: relative;
+            width: 320px;
+            height: 240px;
+            background-color: black;
+            margin-bottom: 20px;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+        }
+        #photoGallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .photoContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        img {
+            max-width: 200px;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
-
 <body>
-
-    <div class="settings-container">
-      SETTINGS!
+    <h1>Kamera-App</h1>
+    <!-- Container für die Kamera -->
+    <div id="videoContainer">
+        <video id="video" autoplay playsinline></video>
     </div>
 
-</body>
+    <!-- Steuerelemente -->
+    <div>
+        <button id="startCameraBtn">Kamera starten</button>
+        <button id="stopCameraBtn" disabled>Kamera stoppen</button>
+        <button id="showPhotosBtn">Fotos anzeigen</button>
+    </div>
 
+    <!-- Galerie für die gespeicherten Fotos -->
+    <div id="photoGallery"></div>
+
+    <!-- App-Skript -->
+    <script>
+        let db; // IndexedDB-Instanz
+        let stream; // Kamera-Stream
+        let photoInterval; // Intervall für die automatische Fotoaufnahme
+
+        // IndexedDB initialisieren
+        function initDatabase() {
+            const request = indexedDB.open("PhotoApp", 1);
+
+            request.onupgradeneeded = function (event) {
+                db = event.target.result;
+                if (!db.objectStoreNames.contains("photos")) {
+                    db.createObjectStore("photos", { keyPath: "id" });
+                }
+            };
+
+            request.onsuccess = function (event) {
+                db = event.target.result;
+                console.log("Datenbank initialisiert");
+            };
+
+            request.onerror = function (event) {
+                console.error("Fehler beim Initialisieren der Datenbank:", event.target.errorCode);
+            };
+        }
+
+        // Funktion: Kamera starten
+        async function startCamera() {
+            const videoElement = document.getElementById("video");
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment",
+                        advanced: [{ zoom: 2 }]
+                    }
+                });
+
+                videoElement.srcObject = stream;
+                videoElement.play();
+
+                console.log("Kamera gestartet");
+
+                document.getElementById("startCameraBtn").disabled = true;
+                document.getElementById("stopCameraBtn").disabled = false;
+
+                // Automatische Fotoaufnahme alle 2 Sekunden
+                photoInterval = setInterval(() => captureAndSavePhoto(videoElement), 2000);
+            } catch (error) {
+                console.error("Fehler beim Zugriff auf die Kamera:", error);
+            }
+        }
+
+        // Funktion: Kamera stoppen
+        function stopCamera() {
+            clearInterval(photoInterval);
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            document.getElementById("startCameraBtn").disabled = false;
+            document.getElementById("stopCameraBtn").disabled = true;
+
+            console.log("Kamera gestoppt");
+        }
+
+        // Funktion: Foto aufnehmen und in IndexedDB speichern
+        function captureAndSavePhoto(videoElement) {
+            const canvas = document.createElement("canvas");
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const context = canvas.getContext("2d");
+
+            context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+            const photoData = canvas.toDataURL("image/jpeg");
+
+            const transaction = db.transaction(["photos"], "readwrite");
+            const store = transaction.objectStore("photos");
+            const id = Date.now();
+            store.add({ id, photoData });
+
+            console.log(`Foto gespeichert mit ID: ${id}`);
+        }
+
+        // Funktion: Fotos aus IndexedDB anzeigen
+        function displayPhotos() {
+            const transaction = db.transaction(["photos"], "readonly");
+            const store = transaction.objectStore("photos");
+            const request = store.getAll();
+
+            request.onsuccess = function () {
+                const photos = request.result;
+
+                const photoGallery = document.getElementById("photoGallery");
+                photoGallery.innerHTML = ""; // Bestehende Inhalte entfernen
+
+                photos.forEach(photo => {
+                    const photoContainer = document.createElement("div");
+                    photoContainer.className = "photoContainer";
+
+                    const img = document.createElement("img");
+                    img.src = photo.photoData;
+
+                    const downloadButton = document.createElement("button");
+                    downloadButton.textContent = "Speichern";
+                    downloadButton.onclick = () => savePhoto(photo.photoData);
+
+                    photoContainer.appendChild(img);
+                    photoContainer.appendChild(downloadButton);
+                    photoGallery.appendChild(photoContainer);
+                });
+            };
+
+            request.onerror = function () {
+                console.error("Fehler beim Abrufen der Fotos:", request.error);
+            };
+        }
+
+        // Funktion: Foto als Datei speichern
+        function savePhoto(photoData) {
+            const a = document.createElement("a");
+            a.href = photoData;
+            a.download = `photo_${Date.now()}.jpg`;
+            a.click();
+        }
+
+        // Event-Listener für Buttons
+        document.getElementById("startCameraBtn").addEventListener("click", startCamera);
+        document.getElementById("stopCameraBtn").addEventListener("click", stopCamera);
+        document.getElementById("showPhotosBtn").addEventListener("click", displayPhotos);
+
+        // IndexedDB initialisieren
+        initDatabase();
+    </script>
+</body>
 </html>
