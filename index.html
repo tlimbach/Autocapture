@@ -127,18 +127,21 @@
         if (photoInterval) {
           clearInterval(photoInterval);
         }
-       
+
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          stream = null;
+        }
+
         document.getElementById("startCameraBtn").disabled = false;
         document.getElementById("stopCameraBtn").disabled = true;
       }
 
       function takePhoto() {
-        
-
         navigator.mediaDevices
           .getUserMedia({
             video: {
-              facingMode: "environment"
+              facingMode: "environment",
             },
           })
           .then((stream) => {
