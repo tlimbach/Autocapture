@@ -114,9 +114,6 @@
 
       async function startCamera() {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment" },
-          });
           document.getElementById("video").srcObject = stream;
           document.getElementById("startCameraBtn").disabled = true;
           document.getElementById("stopCameraBtn").disabled = false;
@@ -130,23 +127,18 @@
         if (photoInterval) {
           clearInterval(photoInterval);
         }
-        if (stream) {
-          stream.getTracks().forEach((track) => track.stop());
-        }
+       
         document.getElementById("startCameraBtn").disabled = false;
         document.getElementById("stopCameraBtn").disabled = true;
       }
 
       function takePhoto() {
-        const width = 1920;
-        const height = 1080;
+        
 
         navigator.mediaDevices
           .getUserMedia({
             video: {
-              facingMode: "environment",
-              width: { ideal: width },
-              height: { ideal: height },
+              facingMode: "environment"
             },
           })
           .then((stream) => {
