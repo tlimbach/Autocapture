@@ -193,6 +193,8 @@
         document.getElementById("stopCameraBtn").disabled = true;
       }
 
+      const MAX_PHOTOS = 300; // Maximale Anzahl an Fotos
+
       function takePhoto() {
         if (!stream) {
           console.error(
@@ -201,19 +203,40 @@
           return;
         }
 
-        const track = stream.getVideoTracks()[0];
-        const imageCapture = new ImageCapture(track);
+        // Prüfen, ob die maximale Anzahl erreicht wurde
+        const store = getPhotoStore();
+        const countRequest = store.count();
 
-        imageCapture
-          .takePhoto()
-          .then((blob) => {
-            console.log("Foto aufgenommen");
-            savePhotoToIndexedDB(blob);
-            updateStorageInfo();
-          })
-          .catch((error) => {
-            console.error("Fehler beim Aufnehmen des Fotos:", error);
-          });
+        countRequest.onsuccess = () => {
+          if (countRequest.result >= MAX_PHOTOS) {
+      //      alert(
+      //        "Maximale Anzahl von Fotos erreicht. Keine weiteren Aufnahmen möglich."
+      //      );
+            stopCamera(); // Kamera stoppen, da keine weiteren Fotos aufgenommen werden dürfen
+            return;
+          }
+
+          const track = stream.getVideoTracks()[0];
+          const imageCapture = new ImageCapture(track);
+
+          imageCapture
+            .takePhoto()
+            .then((blob) => {
+              console.log("Foto aufgenommen");
+              savePhotoToIndexedDB(blob);
+              updateStorageInfo();
+            })
+            .catch((error) => {
+              console.error("Fehler beim Aufnehmen des Fotos:", error);
+            });
+        };
+
+        countRequest.onerror = (event) => {
+          console.error(
+            "Fehler beim Überprüfen der Fotoanzahl:",
+            event.target.error
+          );
+        };
       }
 
       function savePhotoToIndexedDB(blob) {
@@ -302,7 +325,8 @@
             statusElement.textContent = "Status: Erstelle ZIP-Datei...";
             zip
               .generateAsync({ type: "blob" }, (metadata) => {
-                const progress = Math.round((metadata.percent || 0) * 100) / 100;
+                const progress =
+                  Math.round((metadata.percent || 0) * 100) / 100;
                 statusElement.textContent = `Status: ZIP-Erstellung... ${progress}%`;
               })
               .then((content) => {
@@ -310,7 +334,9 @@
                 const url = URL.createObjectURL(content);
 
                 const now = new Date();
-                const date = now.toLocaleDateString("de-DE").replace(/\./g, "-");
+                const date = now
+                  .toLocaleDateString("de-DE")
+                  .replace(/\./g, "-");
                 const time = now.toLocaleTimeString("de-DE").replace(/:/g, "-");
                 const timestamp = `${date}_${time}`;
                 a.download = `photos_${timestamp}.zip`;
