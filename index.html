@@ -57,13 +57,11 @@
         flex-direction: column;
         align-items: center;
         gap: 10px;
-        /* Abstand zwischen den Buttons */
       }
 
       button {
         width: 80%;
         height: 50px;
-        /* Optionale Breitenanpassung */
         padding: 8px 12px;
         border: none;
         border-radius: 5px;
@@ -115,11 +113,16 @@
       let photoInterval;
       let currentInterval = 250;
 
+      function getPhotoStore(mode = "readonly") {
+        const transaction = db.transaction(["photos"], mode);
+        return transaction.objectStore("photos");
+      }
+
       function updateStorageInfo() {
         if (navigator.storage && navigator.storage.estimate) {
           navigator.storage.estimate().then((estimate) => {
-            const usedMB = (estimate.usage / 1024 / 1024).toFixed(2); // In MB
-            const totalMB = (estimate.quota / 1024 / 1024).toFixed(2); // In MB
+            const usedMB = (estimate.usage / 1024 / 1024).toFixed(2);
+            const totalMB = (estimate.quota / 1024 / 1024).toFixed(2);
             document.getElementById(
               "storageInfo"
             ).textContent = `Speicher: ${usedMB} MB von ${totalMB} MB verwendet`;
@@ -130,7 +133,6 @@
         }
       }
 
-      // IndexedDB initialisieren
       function initDatabase() {
         const request = indexedDB.open("PhotoApp", 1);
         request.onupgradeneeded = (event) => {
@@ -157,9 +159,9 @@
             try {
               stream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                  width: { ideal: 1080 }, // Breite im Hochformat (z. B. 720, 1080, 1440px)
-                  height: { ideal: 1920 }, // Höhe im Hochformat (z. B. 1280, 1920, 2560px)
-                  facingMode: "environment", // Rückkamera
+                  width: { ideal: 1080 },
+                  height: { ideal: 1920 },
+                  facingMode: "environment",
                 },
               });
               document.getElementById("video").srcObject = stream;
@@ -202,13 +204,12 @@
         const track = stream.getVideoTracks()[0];
         const imageCapture = new ImageCapture(track);
 
-        // Foto aufnehmen
         imageCapture
           .takePhoto()
           .then((blob) => {
             console.log("Foto aufgenommen");
-            savePhotoToIndexedDB(blob); // Speichere das Bild in IndexedDB
-            updateStorageInfo(); // Nach `initDatabase`, `savePhotoToIndexedDB` usw.
+            savePhotoToIndexedDB(blob);
+            updateStorageInfo();
           })
           .catch((error) => {
             console.error("Fehler beim Aufnehmen des Fotos:", error);
@@ -218,179 +219,62 @@
       function savePhotoToIndexedDB(blob) {
         const reader = new FileReader();
         reader.onloadend = () => {
-          const photoData = reader.result; // Base64-Daten des Bildes
-          const transaction = db.transaction(["photos"], "readwrite");
-          const store = transaction.objectStore("photos");
+          const photoData = reader.result;
+          const store = getPhotoStore("readwrite");
           store.add({ id: Date.now(), photoData });
           updateImageCount();
         };
-        reader.readAsDataURL(blob); // Konvertiere Blob in Base64
+        reader.readAsDataURL(blob);
       }
 
       function displayPhotos() {
-  const gallery = document.getElementById("photoGallery");
-  gallery.innerHTML = ""; // Galerie leeren
+        const gallery = document.getElementById("photoGallery");
+        gallery.innerHTML = "";
 
-  const transaction = db.transaction(["photos"], "readonly");
-  const store = transaction.objectStore("photos");
-  const request = store.openCursor(); // Cursor verwenden
-  let count = 0;
+        const store = getPhotoStore("readonly");
+        const request = store.openCursor();
+        let count = 0;
 
-  request.onsuccess = (event) => {
-    const cursor = event.target.result;
-    if (cursor) {
-      const photo = cursor.value;
+        request.onsuccess = (event) => {
+          const cursor = event.target.result;
+          if (cursor) {
+            const photo = cursor.value;
 
-      // Erstelle einen Container für jedes Foto
-      const photoContainer = document.createElement("div");
-      photoContainer.className = "photoContainer";
+            const photoContainer = document.createElement("div");
+            photoContainer.className = "photoContainer";
 
-      // Erstelle ein Bild-Element
-      const img = document.createElement("img");
-      img.src = photo.photoData;
+            const img = document.createElement("img");
+            img.src = photo.photoData;
 
-      // Erstelle einen Button zum Speichern des Fotos
-      const saveButton = document.createElement("button");
-      saveButton.textContent = "Speichern";
-      saveButton.onclick = () => savePhoto(photo.photoData);
+            const saveButton = document.createElement("button");
+            saveButton.textContent = "Speichern";
+            saveButton.onclick = () => savePhoto(photo.photoData);
 
-      // Füge Bild und Button zum Container hinzu
-      photoContainer.appendChild(img);
-      photoContainer.appendChild(saveButton);
+            photoContainer.appendChild(img);
+            photoContainer.appendChild(saveButton);
 
-      // Füge den Container zur Galerie hinzu
-      gallery.appendChild(photoContainer);
+            gallery.appendChild(photoContainer);
 
-      count++;
-      if (count % 50 === 0) {
-        console.log(`Batch von 50 Fotos verarbeitet. Aktuell: ${count}`);
-      }
+            count++;
+            if (count % 50 === 0) {
+              console.log(`Batch von 50 Fotos verarbeitet. Aktuell: ${count}`);
+            }
 
-      cursor.continue(); // Nächstes Foto laden
-    } else {
-      // Alle Fotos wurden geladen
-      console.log(`Insgesamt ${count} Fotos angezeigt.`);
-    }
-  };
-
-  request.onerror = () => {
-    console.error("Fehler beim Abrufen der Fotos:", request.error);
-  };
-}
-
-      // Funktion: Foto als Datei speichern
-      function savePhoto(photoData) {
-        const a = document.createElement("a");
-        a.href = photoData; // Base64-URL des Fotos
-        a.download = `photo_${Date.now()}.jpg`; // Standard-Dateiname
-        a.click();
-      }
-
-      function deleteAllPhotos() {
-        if (confirm("Möchten Sie wirklich alle Fotos löschen?")) {
-          if (db) {
-            // Schließe alle laufenden Transaktionen und die Verbindung
-            const transaction = db.transaction(["photos"], "readwrite");
-
-            transaction.oncomplete = () => {
-              console.log(
-                "Alle Transaktionen abgeschlossen. Schließe die Datenbank."
-              );
-              db.close();
-              db = null;
-
-              // Starte den Löschvorgang der Datenbank
-              const request = indexedDB.deleteDatabase("PhotoApp");
-
-              request.onsuccess = () => {
-                console.log("Datenbank erfolgreich gelöscht.");
-                initDatabase(); // Datenbank neu initialisieren
-                updateImageCount(); // Zähler aktualisieren
-                updateStorageInfo(); // Speicherinfo aktualisieren
-                alert(
-                  "Alle Fotos wurden erfolgreich gelöscht und der Speicher wurde freigegeben."
-                );
-              };
-
-              request.onerror = (event) => {
-                console.error(
-                  "Fehler beim Löschen der Datenbank:",
-                  event.target.error
-                );
-                alert("Fehler beim Löschen der Fotos.");
-              };
-
-              request.onblocked = () => {
-                console.warn(
-                  "Datenbank konnte nicht gelöscht werden, da sie noch verwendet wird."
-                );
-                alert(
-                  "Die Datenbank konnte nicht gelöscht werden, da sie noch verwendet wird. Die Seite wird jetzt neu geladen, um den Vorgang abzuschließen."
-                );
-                setTimeout(() => location.reload(), 2000); // Reload nach 2 Sekunden
-              };
-            };
-
-            transaction.onerror = (event) => {
-              console.error(
-                "Fehler beim Beenden von Transaktionen:",
-                event.target.error
-              );
-              alert(
-                "Fehler beim Beenden der Datenbankverbindung. Die Fotos wurden möglicherweise nicht gelöscht."
-              );
-            };
+            cursor.continue();
           } else {
-            // Falls die Datenbank bereits geschlossen ist, starte direkt den Löschvorgang
-            const request = indexedDB.deleteDatabase("PhotoApp");
-
-            request.onsuccess = () => {
-              console.log("Datenbank erfolgreich gelöscht.");
-              initDatabase();
-              updateImageCount();
-              updateStorageInfo();
-              alert(
-                "Alle Fotos wurden erfolgreich gelöscht und der Speicher wurde freigegeben."
-              );
-            };
-
-            request.onerror = (event) => {
-              console.error(
-                "Fehler beim Löschen der Datenbank:",
-                event.target.error
-              );
-              alert("Fehler beim Löschen der Fotos.");
-            };
-
-            request.onblocked = () => {
-              console.warn(
-                "Datenbank konnte nicht gelöscht werden, da sie noch verwendet wird."
-              );
-              alert(
-                "Die Datenbank konnte nicht gelöscht werden, da sie noch verwendet wird. Die Seite wird jetzt neu geladen, um den Vorgang abzuschließen."
-              );
-              setTimeout(() => location.reload(), 2000);
-            };
+            console.log(`Insgesamt ${count} Fotos angezeigt.`);
           }
-        }
-      }
+        };
 
-      function updateImageCount() {
-        const transaction = db.transaction(["photos"], "readonly");
-        const store = transaction.objectStore("photos");
-        const request = store.count();
-        request.onsuccess = () => {
-          document.getElementById(
-            "imageCount"
-          ).textContent = `Gespeicherte Bilder: ${request.result}`;
+        request.onerror = () => {
+          console.error("Fehler beim Abrufen der Fotos:", request.error);
         };
       }
 
       async function downloadAllPhotos() {
         const zip = new JSZip();
-        const transaction = db.transaction(["photos"], "readonly");
-        const store = transaction.objectStore("photos");
-        const request = store.openCursor(); // Cursor verwenden
+        const store = getPhotoStore("readonly");
+        const request = store.openCursor();
 
         const statusElement = document.getElementById("zipStatus");
         statusElement.textContent = "Status: Lade Fotos aus der Datenbank...";
@@ -398,41 +282,35 @@
         let processed = 0;
         let totalPhotos = 0;
 
-        // Zähle die Einträge
         const countRequest = store.count();
         countRequest.onsuccess = () => {
-          totalPhotos = countRequest.result; // Gesamtanzahl der Fotos
+          totalPhotos = countRequest.result;
         };
 
         request.onsuccess = async (event) => {
           const cursor = event.target.result;
           if (cursor) {
             const photo = cursor.value;
-            const base64Data = photo.photoData.split(",")[1]; // Entfernt den Data-URL-Header
+            const base64Data = photo.photoData.split(",")[1];
             zip.file(`photo_${photo.id}.jpg`, base64Data, { base64: true });
 
             processed++;
             statusElement.textContent = `Status: Fotos zippen... (${processed}/${totalPhotos})`;
 
-            cursor.continue(); // Nächstes Foto laden
+            cursor.continue();
           } else {
-            // Alle Fotos verarbeitet, jetzt ZIP generieren
             statusElement.textContent = "Status: Erstelle ZIP-Datei...";
             zip
               .generateAsync({ type: "blob" }, (metadata) => {
-                const progress =
-                  Math.round((metadata.percent || 0) * 100) / 100;
+                const progress = Math.round((metadata.percent || 0) * 100) / 100;
                 statusElement.textContent = `Status: ZIP-Erstellung... ${progress}%`;
               })
               .then((content) => {
                 const a = document.createElement("a");
                 const url = URL.createObjectURL(content);
 
-                // Dateiname mit Zeitstempel
                 const now = new Date();
-                const date = now
-                  .toLocaleDateString("de-DE")
-                  .replace(/\./g, "-");
+                const date = now.toLocaleDateString("de-DE").replace(/\./g, "-");
                 const time = now.toLocaleTimeString("de-DE").replace(/:/g, "-");
                 const timestamp = `${date}_${time}`;
                 a.download = `photos_${timestamp}.zip`;
@@ -453,6 +331,35 @@
         request.onerror = () => {
           console.error("Fehler beim Abrufen der Fotos:", request.error);
           statusElement.textContent = "Status: Fehler beim Abrufen der Fotos.";
+        };
+      }
+
+      function deleteAllPhotos() {
+        if (confirm("Möchten Sie wirklich alle Fotos löschen?")) {
+          const store = getPhotoStore("readwrite");
+          const request = store.clear();
+
+          request.onsuccess = () => {
+            console.log("Alle Fotos erfolgreich gelöscht.");
+            updateImageCount();
+            updateStorageInfo();
+            alert("Alle Fotos wurden erfolgreich gelöscht.");
+          };
+
+          request.onerror = (event) => {
+            console.error("Fehler beim Löschen der Fotos:", event.target.error);
+            alert("Fehler beim Löschen der Fotos.");
+          };
+        }
+      }
+
+      function updateImageCount() {
+        const store = getPhotoStore();
+        const request = store.count();
+        request.onsuccess = () => {
+          document.getElementById(
+            "imageCount"
+          ).textContent = `Gespeicherte Bilder: ${request.result}`;
         };
       }
 
@@ -480,8 +387,9 @@
             photoInterval = setInterval(takePhoto, currentInterval);
           }
         });
+
       initDatabase();
-      updateStorageInfo(); // Nach `initDatabase`, `savePhotoToIndexedDB` usw.
+      updateStorageInfo();
       startCamera();
     </script>
   </body>
