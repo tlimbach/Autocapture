@@ -228,48 +228,55 @@
       }
 
       function displayPhotos() {
-        const gallery = document.getElementById("photoGallery");
-        gallery.innerHTML = ""; // Galerie leeren
+  const gallery = document.getElementById("photoGallery");
+  gallery.innerHTML = ""; // Galerie leeren
 
-        const transaction = db.transaction(["photos"], "readonly");
-        const store = transaction.objectStore("photos");
-        const request = store.openCursor();
-        let count = 0;
+  const transaction = db.transaction(["photos"], "readonly");
+  const store = transaction.objectStore("photos");
+  const request = store.openCursor(); // Cursor verwenden
+  let count = 0;
 
-        request.onsuccess = (event) => {
-          const cursor = event.target.result;
-          if (cursor) {
-            const photo = cursor.value;
+  request.onsuccess = (event) => {
+    const cursor = event.target.result;
+    if (cursor) {
+      const photo = cursor.value;
 
-            const photoContainer = document.createElement("div");
-            photoContainer.className = "photoContainer";
+      // Erstelle einen Container für jedes Foto
+      const photoContainer = document.createElement("div");
+      photoContainer.className = "photoContainer";
 
-            const img = document.createElement("img");
-            img.src = photo.photoData;
+      // Erstelle ein Bild-Element
+      const img = document.createElement("img");
+      img.src = photo.photoData;
 
-            const saveButton = document.createElement("button");
-            saveButton.textContent = "Speichern";
-            saveButton.onclick = () => savePhoto(photo.photoData);
+      // Erstelle einen Button zum Speichern des Fotos
+      const saveButton = document.createElement("button");
+      saveButton.textContent = "Speichern";
+      saveButton.onclick = () => savePhoto(photo.photoData);
 
-            photoContainer.appendChild(img);
-            photoContainer.appendChild(saveButton);
-            gallery.appendChild(photoContainer);
+      // Füge Bild und Button zum Container hinzu
+      photoContainer.appendChild(img);
+      photoContainer.appendChild(saveButton);
 
-            count++;
-            if (count < 50) {
-              cursor.continue(); // Nächste Fotos abrufen
-            } else {
-              console.log(
-                "Batch komplett. Weitere Fotos mit erneutem Aufruf laden."
-              );
-            }
-          }
-        };
+      // Füge den Container zur Galerie hinzu
+      gallery.appendChild(photoContainer);
 
-        request.onerror = () => {
-          console.error("Fehler beim Abrufen der Fotos:", request.error);
-        };
+      count++;
+      if (count % 50 === 0) {
+        console.log(`Batch von 50 Fotos verarbeitet. Aktuell: ${count}`);
       }
+
+      cursor.continue(); // Nächstes Foto laden
+    } else {
+      // Alle Fotos wurden geladen
+      console.log(`Insgesamt ${count} Fotos angezeigt.`);
+    }
+  };
+
+  request.onerror = () => {
+    console.error("Fehler beim Abrufen der Fotos:", request.error);
+  };
+}
 
       // Funktion: Foto als Datei speichern
       function savePhoto(photoData) {
