@@ -284,7 +284,7 @@
             // Erstelle einen Button zum Speichern des Fotos
             const saveButton = document.createElement("button");
             saveButton.textContent = "Speichern";
-            saveButton.onclick = () => savePhoto(photo.photoData, count);
+            saveButton.onclick = () => savePhoto(photo.photoData, label);
 
             // Elemente dem Container hinzufügen
             photoContainer.appendChild(label); // Bildnummer
@@ -306,10 +306,10 @@
         };
       }
 
-      function savePhoto(photoData, count) {
+      function savePhoto(photoData, number) {
         const a = document.createElement("a");
         a.href = photoData; // Base64-URL des Fotos
-        a.download = `photo_${count}.jpg`; // Eindeutiger Dateiname mit Bildnummer
+        a.download = `photo_${number}.jpg`; // Eindeutiger Dateiname mit Bildnummer
         a.click();
       }
 
