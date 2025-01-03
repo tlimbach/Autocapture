@@ -111,7 +111,7 @@
       let db;
       let stream;
       let photoInterval;
-      let currentInterval = 250;
+      let currentInterval = 1000;
 
       function getPhotoStore(mode = "readonly") {
         const transaction = db.transaction(["photos"], mode);
