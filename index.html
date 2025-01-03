@@ -284,7 +284,7 @@
             // Erstelle einen Button zum Speichern des Fotos
             const saveButton = document.createElement("button");
             saveButton.textContent = "Speichern";
-            saveButton.onclick = () => savePhoto(photo.photoData, label);
+            saveButton.onclick = () => savePhoto(photo.photoData, count);
 
             // Elemente dem Container hinzufügen
             photoContainer.appendChild(label); // Bildnummer
