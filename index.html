@@ -160,8 +160,10 @@
             try {
               stream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                  width: { ideal: 1080 },
-                  height: { ideal: 1920 },
+                  // width: { ideal: 1080 },
+                  // height: { ideal: 1920 },
+                  width: { ideal: 1440 },
+                  height: { ideal: 2560 },
                   facingMode: "environment",
                 },
               });
@@ -210,9 +212,9 @@
 
         countRequest.onsuccess = () => {
           if (countRequest.result >= MAX_PHOTOS) {
-      //      alert(
-      //        "Maximale Anzahl von Fotos erreicht. Keine weiteren Aufnahmen möglich."
-      //      );
+            //      alert(
+            //        "Maximale Anzahl von Fotos erreicht. Keine weiteren Aufnahmen möglich."
+            //      );
             stopCamera(); // Kamera stoppen, da keine weiteren Fotos aufgenommen werden dürfen
             return;
           }
