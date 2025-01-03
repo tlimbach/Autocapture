@@ -140,8 +140,8 @@
           try {
             stream = await navigator.mediaDevices.getUserMedia({
               video: {
-                width: { ideal: 720 }, // Breite im Hochformat (z. B. 720px)
-                height: { ideal: 1280 }, // Höhe im Hochformat (z. B. 1280px)
+                width: { ideal: 1440 }, // Breite im Hochformat (z. B. 720, 1080, 1440px)
+                height: { ideal: 2560 }, // Höhe im Hochformat (z. B. 1280, 1920, 2560px)
                 facingMode: "environment", // Rückkamera
               },
             });
