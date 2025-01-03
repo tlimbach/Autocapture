@@ -92,6 +92,7 @@
     <div>
       <label for="intervalSelect">Aufnahme-Intervall:</label>
       <select id="intervalSelect">
+        <option value="500">0,5 Sekunden</option>
         <option value="1000">1 Sekunde</option>
         <option value="2000">2 Sekunden</option>
         <option value="5000">5 Sekunden</option>
@@ -111,7 +112,7 @@
       let db;
       let stream;
       let photoInterval;
-      let currentInterval = 1000;
+      let currentInterval = 500;
 
       function getPhotoStore(mode = "readonly") {
         const transaction = db.transaction(["photos"], mode);
