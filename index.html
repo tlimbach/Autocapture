@@ -255,7 +255,7 @@
 
       function displayPhotos() {
         const gallery = document.getElementById("photoGallery");
-        gallery.innerHTML = "";
+        gallery.innerHTML = ""; // Galerie leeren
 
         const store = getPhotoStore("readonly");
         const request = store.openCursor();
@@ -266,28 +266,37 @@
           if (cursor) {
             const photo = cursor.value;
 
+            // Bildnummer aktualisieren
+            count++;
+
+            // Erstelle einen Container für jedes Foto
             const photoContainer = document.createElement("div");
             photoContainer.className = "photoContainer";
 
+            // Bildnummer hinzufügen
+            const label = document.createElement("p");
+            label.textContent = `Bild Nr. ${count}`;
+
+            // Erstelle ein Bild-Element
             const img = document.createElement("img");
             img.src = photo.photoData;
 
+            // Erstelle einen Button zum Speichern des Fotos
             const saveButton = document.createElement("button");
             saveButton.textContent = "Speichern";
-            saveButton.onclick = () => savePhoto(photo.photoData);
+            saveButton.onclick = () => savePhoto(photo.photoData, count);
 
-            photoContainer.appendChild(img);
-            photoContainer.appendChild(saveButton);
+            // Elemente dem Container hinzufügen
+            photoContainer.appendChild(label); // Bildnummer
+            photoContainer.appendChild(img); // Bild
+            photoContainer.appendChild(saveButton); // Speichern-Button
 
+            // Füge den Container zur Galerie hinzu
             gallery.appendChild(photoContainer);
 
-            count++;
-            if (count % 50 === 0) {
-              console.log(`Batch von 50 Fotos verarbeitet. Aktuell: ${count}`);
-            }
-
-            cursor.continue();
+            cursor.continue(); // Nächstes Foto laden
           } else {
+            // Alle Fotos verarbeitet
             console.log(`Insgesamt ${count} Fotos angezeigt.`);
           }
         };
@@ -295,6 +304,13 @@
         request.onerror = () => {
           console.error("Fehler beim Abrufen der Fotos:", request.error);
         };
+      }
+
+      function savePhoto(photoData, count) {
+        const a = document.createElement("a");
+        a.href = photoData; // Base64-URL des Fotos
+        a.download = `photo_${count}.jpg`; // Eindeutiger Dateiname mit Bildnummer
+        a.click();
       }
 
       async function downloadAllPhotos() {
