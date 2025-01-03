@@ -1,337 +1,343 @@
 <!DOCTYPE html>
 <html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <title>Autocapture</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #0056b3;
+      }
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <title>Autocapture</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
+      #videoContainer {
+        position: relative;
+        width: 240px;
+        height: 320px;
+        background-color: black;
+        margin-bottom: 20px;
+        display: none;
+      }
 
-    #videoContainer {
-      position: relative;
-      width: 240px;
-      height: 320px;
-      background-color: black;
-      margin-bottom: 20px;
-      display: none;
-    }
+      video {
+        width: 100%;
+        height: 100%;
+      }
 
-    video {
-      width: 100%;
-      height: 100%;
-    }
+      #photoGallery {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 20px;
+      }
 
-    #photoGallery {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-      margin-top: 20px;
-    }
+      .photoContainer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
 
-    .photoContainer {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+      img {
+        max-width: 200px;
+        height: auto;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
 
-    img {
-      max-width: 200px;
-      height: auto;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-    }
+      div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        /* Abstand zwischen den Buttons */
+      }
 
-    div {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      /* Abstand zwischen den Buttons */
-    }
+      button {
+        width: 80%;
+        height: 50px;
+        /* Optionale Breitenanpassung */
+        padding: 8px 12px;
+        border: none;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+      }
 
-    button {
-      width: 80%;
-      /* Optionale Breitenanpassung */
-      padding: 8px 12px;
-      border: none;
-      border-radius: 5px;
-      background-color: #007bff;
-      color: white;
-      cursor: pointer;
-    }
+      button:hover {
+        background-color: #0056b3;
+      }
 
-    button:hover {
-      background-color: #0056b3;
-    }
+      select,
+      #imageCount {
+        margin: 10px 0;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
 
-    select,
-    #imageCount {
-      margin: 10px 0;
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-    }
-  </style>
-</head>
+  <body>
+    <h1>Autocapture</h1>
+    <div id="videoContainer">
+      <video id="video" autoplay playsinline></video>
+    </div>
+    <div>
+      <label for="intervalSelect">Aufnahme-Intervall:</label>
+      <select id="intervalSelect">
+        <option value="1000">1 Sekunde</option>
+        <option value="2000">2 Sekunden</option>
+        <option value="5000">5 Sekunden</option>
+        <option value="10000">10 Sekunden</option>
+      </select>
+      <button id="startCameraBtn">Kamera starten</button>
+      <button id="stopCameraBtn" disabled>Kamera stoppen</button>
+      <button id="showPhotosBtn">Fotos anzeigen</button>
+      <button id="downloadAllBtn">Alle Fotos herunterladen</button>
+      <button id="deletePhotosBtn">Alle Fotos löschen</button>
+    </div>
+    <p id="imageCount">Gespeicherte Bilder: 0</p>
+    <div id="photoGallery"></div>
+    <script>
+      let db;
+      let stream;
+      let photoInterval;
+      let currentInterval = 1000;
 
-<body>
-  <h1>Autocapture</h1>
-  <div id="videoContainer">
-    <video id="video" autoplay playsinline></video>
-  </div>
-  <div>
-    <label for="intervalSelect">Aufnahme-Intervall:</label>
-    <select id="intervalSelect">
-      <option value="1000">1 Sekunde</option>
-      <option value="2000">2 Sekunden</option>
-      <option value="5000">5 Sekunden</option>
-      <option value="10000">10 Sekunden</option>
-    </select>
-    <button id="startCameraBtn">Kamera starten</button>
-    <button id="stopCameraBtn" disabled>Kamera stoppen</button>
-    <button id="showPhotosBtn">Fotos anzeigen</button>
-    <button id="downloadAllBtn">Alle Fotos herunterladen</button>
-    <button id="deletePhotosBtn">Alle Fotos löschen</button>
-  </div>
-  <p id="imageCount">Gespeicherte Bilder: 0</p>
-  <div id="photoGallery"></div>
-  <script>
-    let db;
-    let stream;
-    let photoInterval;
-    let currentInterval = 1000;
-
-    // IndexedDB initialisieren
-    function initDatabase() {
-      const request = indexedDB.open("PhotoApp", 1);
-      request.onupgradeneeded = (event) => {
-        db = event.target.result;
-        if (!db.objectStoreNames.contains("photos")) {
-          db.createObjectStore("photos", { keyPath: "id" });
-        }
-      };
-      request.onsuccess = (event) => {
-        db = event.target.result;
-        updateImageCount();
-      };
-      request.onerror = (event) => {
-        console.error(
-          "Fehler beim Initialisieren der Datenbank:",
-          event.target.errorCode
-        );
-      };
-    }
-
-    async function startCamera() {
-      try {
-        if (!stream) {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: {
-                width: { ideal: 1080 }, // Breite im Hochformat (z. B. 720, 1080, 1440px)
-                height: { ideal: 1920 }, // Höhe im Hochformat (z. B. 1280, 1920, 2560px)
-                facingMode: "environment", // Rückkamera
-              },
-            });
-            document.getElementById("video").srcObject = stream;
-          } catch (error) {
-            console.error("Fehler beim Zugriff auf die Kamera:", error);
+      // IndexedDB initialisieren
+      function initDatabase() {
+        const request = indexedDB.open("PhotoApp", 1);
+        request.onupgradeneeded = (event) => {
+          db = event.target.result;
+          if (!db.objectStoreNames.contains("photos")) {
+            db.createObjectStore("photos", { keyPath: "id" });
           }
+        };
+        request.onsuccess = (event) => {
+          db = event.target.result;
+          updateImageCount();
+        };
+        request.onerror = (event) => {
+          console.error(
+            "Fehler beim Initialisieren der Datenbank:",
+            event.target.errorCode
+          );
+        };
+      }
+
+      async function startCamera() {
+        try {
+          if (!stream) {
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  width: { ideal: 1080 }, // Breite im Hochformat (z. B. 720, 1080, 1440px)
+                  height: { ideal: 1920 }, // Höhe im Hochformat (z. B. 1280, 1920, 2560px)
+                  facingMode: "environment", // Rückkamera
+                },
+              });
+              document.getElementById("video").srcObject = stream;
+            } catch (error) {
+              console.error("Fehler beim Zugriff auf die Kamera:", error);
+            }
+          }
+
+          document.getElementById("video").srcObject = stream;
+          document.getElementById("startCameraBtn").disabled = true;
+          document.getElementById("stopCameraBtn").disabled = false;
+          photoInterval = setInterval(takePhoto, currentInterval);
+        } catch (error) {
+          console.error("Fehler beim Zugriff auf die Kamera:", error);
+        }
+      }
+
+      function stopCamera() {
+        if (photoInterval) {
+          clearInterval(photoInterval);
         }
 
-        document.getElementById("video").srcObject = stream;
-        document.getElementById("startCameraBtn").disabled = true;
-        document.getElementById("stopCameraBtn").disabled = false;
-        photoInterval = setInterval(takePhoto, currentInterval);
-      } catch (error) {
-        console.error("Fehler beim Zugriff auf die Kamera:", error);
-      }
-    }
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          stream = null;
+        }
 
-    function stopCamera() {
-      if (photoInterval) {
-        clearInterval(photoInterval);
+        document.getElementById("startCameraBtn").disabled = false;
+        document.getElementById("stopCameraBtn").disabled = true;
       }
 
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-        stream = null;
-      }
-
-      document.getElementById("startCameraBtn").disabled = false;
-      document.getElementById("stopCameraBtn").disabled = true;
-    }
-
-    function takePhoto() {
-      if (!stream) {
-        console.error(
-          "Stream ist nicht verfügbar. Starten Sie zuerst die Kamera."
-        );
-        return;
-      }
-
-      const track = stream.getVideoTracks()[0];
-      const imageCapture = new ImageCapture(track);
-
-      // Foto aufnehmen
-      imageCapture
-        .takePhoto()
-        .then((blob) => {
-          console.log("Foto aufgenommen");
-          savePhotoToIndexedDB(blob); // Speichere das Bild in IndexedDB
-        })
-        .catch((error) => {
-          console.error("Fehler beim Aufnehmen des Fotos:", error);
-        });
-    }
-
-    function savePhotoToIndexedDB(blob) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const photoData = reader.result; // Base64-Daten des Bildes
-        const transaction = db.transaction(["photos"], "readwrite");
-        const store = transaction.objectStore("photos");
-        store.add({ id: Date.now(), photoData });
-        updateImageCount();
-      };
-      reader.readAsDataURL(blob); // Konvertiere Blob in Base64
-    }
-
-    function displayPhotos() {
-      const transaction = db.transaction(["photos"], "readonly");
-      const store = transaction.objectStore("photos");
-      const request = store.getAll();
-
-      request.onsuccess = () => {
-        const photos = request.result;
-        const gallery = document.getElementById("photoGallery");
-        gallery.innerHTML = ""; // Lösche vorherige Inhalte der Galerie
-
-        photos.forEach((photo) => {
-          // Erstelle ein Container für jedes Foto
-          const photoContainer = document.createElement("div");
-          photoContainer.className = "photoContainer";
-
-          // Erstelle ein Bild-Element
-          const img = document.createElement("img");
-          img.src = photo.photoData;
-
-          // Erstelle einen Button, um das Foto zu speichern
-          const saveButton = document.createElement("button");
-          saveButton.textContent = "Speichern";
-          saveButton.onclick = () => savePhoto(photo.photoData);
-
-          // Füge Bild und Button zum Container hinzu
-          photoContainer.appendChild(img);
-          photoContainer.appendChild(saveButton);
-
-          // Füge den Container zur Galerie hinzu
-          gallery.appendChild(photoContainer);
-        });
-      };
-
-      request.onerror = () => {
-        console.error("Fehler beim Abrufen der Fotos:", request.error);
-      };
-    }
-
-    // Funktion: Foto als Datei speichern
-    function savePhoto(photoData) {
-      const a = document.createElement("a");
-      a.href = photoData; // Base64-URL des Fotos
-      a.download = `photo_${Date.now()}.jpg`; // Standard-Dateiname
-      a.click();
-    }
-
-    function deleteAllPhotos() {
-      if (confirm("Möchten Sie wirklich alle Fotos löschen?")) {
-        const transaction = db.transaction(["photos"], "readwrite");
-        const store = transaction.objectStore("photos");
-        store.clear();
-        updateImageCount();
-      }
-    }
-
-    function updateImageCount() {
-      const transaction = db.transaction(["photos"], "readonly");
-      const store = transaction.objectStore("photos");
-      const request = store.count();
-      request.onsuccess = () => {
-        document.getElementById(
-          "imageCount"
-        ).textContent = `Gespeicherte Bilder: ${request.result}`;
-      };
-    }
-
-    async function downloadAllPhotos() {
-      const zip = new JSZip();
-      const transaction = db.transaction(["photos"], "readonly");
-      const store = transaction.objectStore("photos");
-      const request = store.getAll();
-
-      request.onsuccess = () => {
-        const photos = request.result;
-
-        if (photos.length === 0) {
-          alert("Keine Fotos vorhanden zum Herunterladen.");
+      function takePhoto() {
+        if (!stream) {
+          console.error(
+            "Stream ist nicht verfügbar. Starten Sie zuerst die Kamera."
+          );
           return;
         }
 
-        photos.forEach((photo) => {
-          const base64Data = photo.photoData.split(",")[1]; // Entfernt den Data-URL-Header
-          zip.file(`photo_${photo.id}.jpg`, base64Data, { base64: true });
-        });
+        const track = stream.getVideoTracks()[0];
+        const imageCapture = new ImageCapture(track);
 
-        zip.generateAsync({ type: "blob" }).then((content) => {
-          const a = document.createElement("a");
-          const url = URL.createObjectURL(content);
-          a.href = url;
-          a.download = "photos.zip";
-          a.click();
-          URL.revokeObjectURL(url);
-        });
-      };
+        // Foto aufnehmen
+        imageCapture
+          .takePhoto()
+          .then((blob) => {
+            console.log("Foto aufgenommen");
+            savePhotoToIndexedDB(blob); // Speichere das Bild in IndexedDB
+          })
+          .catch((error) => {
+            console.error("Fehler beim Aufnehmen des Fotos:", error);
+          });
+      }
 
-      request.onerror = () => {
-        console.error("Fehler beim Abrufen der Fotos:", request.error);
-      };
-    }
+      function savePhotoToIndexedDB(blob) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const photoData = reader.result; // Base64-Daten des Bildes
+          const transaction = db.transaction(["photos"], "readwrite");
+          const store = transaction.objectStore("photos");
+          store.add({ id: Date.now(), photoData });
+          updateImageCount();
+        };
+        reader.readAsDataURL(blob); // Konvertiere Blob in Base64
+      }
 
-    document
-      .getElementById("downloadAllBtn")
-      .addEventListener("click", downloadAllPhotos);
-    document
-      .getElementById("startCameraBtn")
-      .addEventListener("click", startCamera);
-    document
-      .getElementById("stopCameraBtn")
-      .addEventListener("click", stopCamera);
-    document
-      .getElementById("showPhotosBtn")
-      .addEventListener("click", displayPhotos);
-    document
-      .getElementById("deletePhotosBtn")
-      .addEventListener("click", deleteAllPhotos);
-    document
-      .getElementById("intervalSelect")
-      .addEventListener("change", (event) => {
-        currentInterval = parseInt(event.target.value, 10);
-        if (photoInterval) {
-          clearInterval(photoInterval);
-          photoInterval = setInterval(takePhoto, currentInterval);
+      function displayPhotos() {
+        const transaction = db.transaction(["photos"], "readonly");
+        const store = transaction.objectStore("photos");
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+          const photos = request.result;
+          const gallery = document.getElementById("photoGallery");
+          gallery.innerHTML = ""; // Lösche vorherige Inhalte der Galerie
+
+          photos.forEach((photo) => {
+            // Erstelle ein Container für jedes Foto
+            const photoContainer = document.createElement("div");
+            photoContainer.className = "photoContainer";
+
+            // Erstelle ein Bild-Element
+            const img = document.createElement("img");
+            img.src = photo.photoData;
+
+            // Erstelle einen Button, um das Foto zu speichern
+            const saveButton = document.createElement("button");
+            saveButton.textContent = "Speichern";
+            saveButton.onclick = () => savePhoto(photo.photoData);
+
+            // Füge Bild und Button zum Container hinzu
+            photoContainer.appendChild(img);
+            photoContainer.appendChild(saveButton);
+
+            // Füge den Container zur Galerie hinzu
+            gallery.appendChild(photoContainer);
+          });
+        };
+
+        request.onerror = () => {
+          console.error("Fehler beim Abrufen der Fotos:", request.error);
+        };
+      }
+
+      // Funktion: Foto als Datei speichern
+      function savePhoto(photoData) {
+        const a = document.createElement("a");
+        a.href = photoData; // Base64-URL des Fotos
+        a.download = `photo_${Date.now()}.jpg`; // Standard-Dateiname
+        a.click();
+      }
+
+      function deleteAllPhotos() {
+        if (confirm("Möchten Sie wirklich alle Fotos löschen?")) {
+          const transaction = db.transaction(["photos"], "readwrite");
+          const store = transaction.objectStore("photos");
+          store.clear();
+          updateImageCount();
         }
-      });
+      }
+
+      function updateImageCount() {
+        const transaction = db.transaction(["photos"], "readonly");
+        const store = transaction.objectStore("photos");
+        const request = store.count();
+        request.onsuccess = () => {
+          document.getElementById(
+            "imageCount"
+          ).textContent = `Gespeicherte Bilder: ${request.result}`;
+        };
+      }
+
+      async function downloadAllPhotos() {
+        const zip = new JSZip();
+        const transaction = db.transaction(["photos"], "readonly");
+        const store = transaction.objectStore("photos");
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+          const photos = request.result;
+
+          if (photos.length === 0) {
+            alert("Keine Fotos vorhanden zum Herunterladen.");
+            return;
+          }
+
+          photos.forEach((photo) => {
+            const base64Data = photo.photoData.split(",")[1]; // Entfernt den Data-URL-Header
+            zip.file(`photo_${photo.id}.jpg`, base64Data, { base64: true });
+          });
+
+          zip.generateAsync({ type: "blob" }).then((content) => {
+            const a = document.createElement("a");
+            const url = URL.createObjectURL(content);
+            a.href = url;
+            const now = new Date();
+            const date = now.toLocaleDateString("de-DE").replace(/\./g, "-"); // Datum im Format TT-MM-JJJJ
+            const time = now.toLocaleTimeString("de-DE").replace(/:/g, "-"); // Zeit im Format HH-MM-SS
+            const timestamp = `${date}_${time}`;
+            a.download = `photos_${timestamp}.zip`;
+
+            a.click();
+            URL.revokeObjectURL(url);
+          });
+        };
+
+        request.onerror = () => {
+          console.error("Fehler beim Abrufen der Fotos:", request.error);
+        };
+      }
+
+      document
+        .getElementById("downloadAllBtn")
+        .addEventListener("click", downloadAllPhotos);
+      document
+        .getElementById("startCameraBtn")
+        .addEventListener("click", startCamera);
+      document
+        .getElementById("stopCameraBtn")
+        .addEventListener("click", stopCamera);
+      document
+        .getElementById("showPhotosBtn")
+        .addEventListener("click", displayPhotos);
+      document
+        .getElementById("deletePhotosBtn")
+        .addEventListener("click", deleteAllPhotos);
+      document
+        .getElementById("intervalSelect")
+        .addEventListener("change", (event) => {
+          currentInterval = parseInt(event.target.value, 10);
+          if (photoInterval) {
+            clearInterval(photoInterval);
+            photoInterval = setInterval(takePhoto, currentInterval);
+          }
+        });
       initDatabase();
       startCamera();
     </script>
