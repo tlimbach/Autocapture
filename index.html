@@ -93,7 +93,6 @@
   <div>
     <label for="intervalSelect">Aufnahme-Intervall:</label>
     <select id="intervalSelect">
-      <option value="500">0,5 Sekunden</option>
       <option value="1000">1 Sekunde</option>
       <option value="2000">2 Sekunden</option>
       <option value="5000">5 Sekunden</option>
@@ -111,7 +110,7 @@
     let db;
     let stream;
     let photoInterval;
-    let currentInterval = 500;
+    let currentInterval = 1000;
 
     // IndexedDB initialisieren
     function initDatabase() {
@@ -140,8 +139,8 @@
           try {
             stream = await navigator.mediaDevices.getUserMedia({
               video: {
-                width: { ideal: 1440 }, // Breite im Hochformat (z. B. 720, 1080, 1440px)
-                height: { ideal: 2560 }, // Höhe im Hochformat (z. B. 1280, 1920, 2560px)
+                width: { ideal: 1080 }, // Breite im Hochformat (z. B. 720, 1080, 1440px)
+                height: { ideal: 1920 }, // Höhe im Hochformat (z. B. 1280, 1920, 2560px)
                 facingMode: "environment", // Rückkamera
               },
             });
