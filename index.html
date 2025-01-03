@@ -104,6 +104,7 @@
       <button id="showPhotosBtn">Fotos anzeigen</button>
       <button id="downloadAllBtn">Alle Fotos herunterladen</button>
       <button id="deletePhotosBtn">Alle Fotos löschen</button>
+      <p id="storageInfo">Speicher: Wird geladen...</p>
     </div>
     <p id="imageCount">Gespeicherte Bilder: 0</p>
     <div id="photoGallery"></div>
@@ -112,6 +113,21 @@
       let stream;
       let photoInterval;
       let currentInterval = 1000;
+
+      function updateStorageInfo() {
+        if (navigator.storage && navigator.storage.estimate) {
+          navigator.storage.estimate().then((estimate) => {
+            const usedMB = (estimate.usage / 1024 / 1024).toFixed(2); // In MB
+            const totalMB = (estimate.quota / 1024 / 1024).toFixed(2); // In MB
+            document.getElementById(
+              "storageInfo"
+            ).textContent = `Speicher: ${usedMB} MB von ${totalMB} MB verwendet`;
+          });
+        } else {
+          document.getElementById("storageInfo").textContent =
+            "Speicherinfo nicht verfügbar.";
+        }
+      }
 
       // IndexedDB initialisieren
       function initDatabase() {
@@ -191,6 +207,7 @@
           .then((blob) => {
             console.log("Foto aufgenommen");
             savePhotoToIndexedDB(blob); // Speichere das Bild in IndexedDB
+            updateStorageInfo(); // Nach `initDatabase`, `savePhotoToIndexedDB` usw.
           })
           .catch((error) => {
             console.error("Fehler beim Aufnehmen des Fotos:", error);
@@ -210,36 +227,42 @@
       }
 
       function displayPhotos() {
+        const gallery = document.getElementById("photoGallery");
+        gallery.innerHTML = ""; // Galerie leeren
+
         const transaction = db.transaction(["photos"], "readonly");
         const store = transaction.objectStore("photos");
-        const request = store.getAll();
+        const request = store.openCursor();
+        let count = 0;
 
-        request.onsuccess = () => {
-          const photos = request.result;
-          const gallery = document.getElementById("photoGallery");
-          gallery.innerHTML = ""; // Lösche vorherige Inhalte der Galerie
+        request.onsuccess = (event) => {
+          const cursor = event.target.result;
+          if (cursor) {
+            const photo = cursor.value;
 
-          photos.forEach((photo) => {
-            // Erstelle ein Container für jedes Foto
             const photoContainer = document.createElement("div");
             photoContainer.className = "photoContainer";
 
-            // Erstelle ein Bild-Element
             const img = document.createElement("img");
             img.src = photo.photoData;
 
-            // Erstelle einen Button, um das Foto zu speichern
             const saveButton = document.createElement("button");
             saveButton.textContent = "Speichern";
             saveButton.onclick = () => savePhoto(photo.photoData);
 
-            // Füge Bild und Button zum Container hinzu
             photoContainer.appendChild(img);
             photoContainer.appendChild(saveButton);
-
-            // Füge den Container zur Galerie hinzu
             gallery.appendChild(photoContainer);
-          });
+
+            count++;
+            if (count < 50) {
+              cursor.continue(); // Nächste Fotos abrufen
+            } else {
+              console.log(
+                "Batch komplett. Weitere Fotos mit erneutem Aufruf laden."
+              );
+            }
+          }
         };
 
         request.onerror = () => {
@@ -256,13 +279,72 @@
       }
 
       function deleteAllPhotos() {
-        if (confirm("Möchten Sie wirklich alle Fotos löschen?")) {
-          const transaction = db.transaction(["photos"], "readwrite");
-          const store = transaction.objectStore("photos");
-          store.clear();
-          updateImageCount();
-        }
-      }
+  if (confirm("Möchten Sie wirklich alle Fotos löschen?")) {
+    if (db) {
+      // Schließe alle laufenden Transaktionen und die Verbindung
+      const transaction = db.transaction(["photos"], "readwrite");
+
+      transaction.oncomplete = () => {
+        console.log("Alle Transaktionen abgeschlossen. Schließe die Datenbank.");
+        db.close();
+        db = null;
+
+        // Starte den Löschvorgang der Datenbank
+        const request = indexedDB.deleteDatabase("PhotoApp");
+
+        request.onsuccess = () => {
+          console.log("Datenbank erfolgreich gelöscht.");
+          initDatabase(); // Datenbank neu initialisieren
+          updateImageCount(); // Zähler aktualisieren
+          updateStorageInfo(); // Speicherinfo aktualisieren
+          alert("Alle Fotos wurden erfolgreich gelöscht und der Speicher wurde freigegeben.");
+        };
+
+        request.onerror = (event) => {
+          console.error("Fehler beim Löschen der Datenbank:", event.target.error);
+          alert("Fehler beim Löschen der Fotos.");
+        };
+
+        request.onblocked = () => {
+          console.warn("Datenbank konnte nicht gelöscht werden, da sie noch verwendet wird.");
+          alert(
+            "Die Datenbank konnte nicht gelöscht werden, da sie noch verwendet wird. Die Seite wird jetzt neu geladen, um den Vorgang abzuschließen."
+          );
+          setTimeout(() => location.reload(), 2000); // Reload nach 2 Sekunden
+        };
+      };
+
+      transaction.onerror = (event) => {
+        console.error("Fehler beim Beenden von Transaktionen:", event.target.error);
+        alert("Fehler beim Beenden der Datenbankverbindung. Die Fotos wurden möglicherweise nicht gelöscht.");
+      };
+    } else {
+      // Falls die Datenbank bereits geschlossen ist, starte direkt den Löschvorgang
+      const request = indexedDB.deleteDatabase("PhotoApp");
+
+      request.onsuccess = () => {
+        console.log("Datenbank erfolgreich gelöscht.");
+        initDatabase();
+        updateImageCount();
+        updateStorageInfo();
+        alert("Alle Fotos wurden erfolgreich gelöscht und der Speicher wurde freigegeben.");
+      };
+
+      request.onerror = (event) => {
+        console.error("Fehler beim Löschen der Datenbank:", event.target.error);
+        alert("Fehler beim Löschen der Fotos.");
+      };
+
+      request.onblocked = () => {
+        console.warn("Datenbank konnte nicht gelöscht werden, da sie noch verwendet wird.");
+        alert(
+          "Die Datenbank konnte nicht gelöscht werden, da sie noch verwendet wird. Die Seite wird jetzt neu geladen, um den Vorgang abzuschließen."
+        );
+        setTimeout(() => location.reload(), 2000);
+      };
+    }
+  }
+}
 
       function updateImageCount() {
         const transaction = db.transaction(["photos"], "readonly");
@@ -339,6 +421,7 @@
           }
         });
       initDatabase();
+      updateStorageInfo(); // Nach `initDatabase`, `savePhotoToIndexedDB` usw.
       startCamera();
     </script>
   </body>
